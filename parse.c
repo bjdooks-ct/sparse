@@ -84,7 +84,7 @@ static attr_t
 	attribute_address_space, attribute_context,
 	attribute_designated_init,
 	attribute_transparent_union, ignore_attribute,
-	attribute_mode, attribute_force;
+	attribute_mode, attribute_force, attribute_format;
 
 typedef struct symbol *to_mode_t(struct symbol *);
 
@@ -113,6 +113,10 @@ enum {
 
 enum {
 	SNone = 0, STypedef, SAuto, SRegister, SExtern, SStatic, SForced, SMax,
+};
+
+enum {
+	FmtPrintf = 0, FmtScanf,
 };
 
 static struct symbol_op typedef_op = {
@@ -353,6 +357,10 @@ static struct symbol_op attr_force_op = {
 	.attribute = attribute_force,
 };
 
+static struct symbol_op attr_format = {
+	.attribute = attribute_format,
+};
+
 static struct symbol_op address_space_op = {
 	.attribute = attribute_address_space,
 };
@@ -405,6 +413,16 @@ static struct symbol_op mode_TI_op = {
 static struct symbol_op mode_word_op = {
 	.type = KW_MODE,
 	.to_mode = to_word_mode
+};
+
+static struct symbol_op attr_printf_op = {
+	.type	= KW_FORMAT,
+	.class	= FmtPrintf,
+};
+
+static struct symbol_op attr_scanf_op = {
+	.type	= KW_FORMAT,
+	.class	= FmtScanf,
 };
 
 /* Using NS_TYPEDEF will also make the keyword a reserved one */
@@ -513,6 +531,9 @@ static struct init_keyword {
 	{ "bitwise",	NS_KEYWORD,	MOD_BITWISE,	.op = &attr_bitwise_op },
 	{ "__bitwise__",NS_KEYWORD,	MOD_BITWISE,	.op = &attr_bitwise_op },
 	{ "address_space",NS_KEYWORD,	.op = &address_space_op },
+	{ "format",	NS_KEYWORD,	.op = &attr_format },
+	{ "printf",	NS_KEYWORD,	.op = &attr_printf_op },
+	{ "scanf",	NS_KEYWORD,	.op = &attr_scanf_op },
 	{ "mode",	NS_KEYWORD,	.op = &mode_op },
 	{ "context",	NS_KEYWORD,	.op = &context_op },
 	{ "designated_init",	NS_KEYWORD,	.op = &designated_init_op },
@@ -1048,6 +1069,73 @@ static struct token *attribute_address_space(struct token *token, struct symbol 
 			ctx->ctype.as = as;
 	}
 	token = expect(token, ')', "after address_space attribute");
+	return token;
+}
+
+static int invalid_printf_format_args(long long start, long long at)
+{
+	return start < 0 || at < 0 || (start == at && start > 0) ||
+		(start == 0 && at == 0);
+}
+
+static struct token *attribute_format(struct token *token, struct symbol *attr, struct decl_state *ctx)
+{
+	struct expression *args[3];
+	struct symbol *fmt_sym = NULL;
+	int argc = 0;
+
+	/* expecting format ( type, start, va_args at) */
+
+	token = expect(token, '(', "after format attribute");
+	while (!match_op(token, ')')) {
+		struct expression *expr = NULL;
+
+		if (argc == 0) {
+			if (token_type(token) == TOKEN_IDENT)
+				fmt_sym = lookup_keyword(token->ident, NS_KEYWORD);
+
+			if (!fmt_sym || !fmt_sym->op ||
+			    fmt_sym->op->type != KW_FORMAT) {
+				sparse_error(token->pos,
+					     "unknown format type '%s'\n",
+					     show_ident(token->ident));
+				fmt_sym = NULL;
+			}
+		}
+
+		token = conditional_expression(token, &expr);
+		if (!expr)
+			break;
+		if (argc < 3)
+			args[argc++] = expr;
+		if (!match_op(token, ','))
+			break;
+		token = token->next;
+	}
+
+	if (argc != 3 || !fmt_sym) {
+		warning(token->pos, "incorrect format attribute");
+	} else if (fmt_sym->op->class != FmtPrintf) {
+		/* skip anything that isn't printf for the moment */
+	} else {
+		long long start, at;
+
+		start = get_expression_value(args[2]);
+		at = get_expression_value(args[1]);
+
+		if (invalid_printf_format_args(start, at)) {
+			warning(token->pos, "bad format positions");
+		} else if (start == 0) {
+			/* nothing to do here, is va_list function */
+		} else if (start < at) {
+			warning(token->pos, "format cannot be after va_args");
+		} else {
+			ctx->ctype.printf_va_start = start;
+			ctx->ctype.printf_msg = at;
+		}
+	}
+
+	token = expect(token, ')', "after format attribute");
 	return token;
 }
 
@@ -2843,6 +2931,9 @@ struct token *external_declaration(struct token *token, struct symbol_list **lis
 
 		if (!(decl->ctype.modifiers & MOD_STATIC))
 			decl->ctype.modifiers |= MOD_EXTERN;
+
+		base_type->ctype.printf_msg = decl->ctype.printf_msg;
+		base_type->ctype.printf_va_start = decl->ctype.printf_va_start;
 	} else if (base_type == &void_ctype && !(decl->ctype.modifiers & MOD_EXTERN)) {
 		sparse_error(token->pos, "void declaration");
 	}

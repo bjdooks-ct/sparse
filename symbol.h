@@ -86,6 +86,7 @@ enum keyword {
 	KW_SHORT	= 1 << 7,
 	KW_LONG		= 1 << 8,
 	KW_EXACT	= 1 << 9,
+	KW_FORMAT	= 1 << 10,
 };
 
 struct context {
@@ -103,6 +104,7 @@ struct ctype {
 	struct context_list *contexts;
 	unsigned int as;
 	struct symbol *base_type;
+	unsigned short printf_va_start, printf_msg;
 };
 
 struct decl_state {
