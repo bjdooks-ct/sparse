@@ -13,7 +13,7 @@ static int test(void) {
  *
  * check-error-start
 varargs-format-prefix.c:7:26: warning: incorrect type in argument 2 (different address spaces)
-varargs-format-prefix.c:7:26:    expected char *
+varargs-format-prefix.c:7:26:    expected const char *
 varargs-format-prefix.c:7:26:    got void [noderef] <asn:1> *a
  * check-error-end
  */
