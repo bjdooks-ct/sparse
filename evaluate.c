@@ -2243,12 +2243,310 @@ static struct symbol *evaluate_alignof(struct expression *expr)
 	return size_t_ctype;
 }
 
+struct format_type;
+struct format_type {
+	const char	*format;
+	int		(*test)(struct format_type *fmt, struct expression **expr, struct symbol *ctype, struct symbol **target, const char **typediff);
+	void		*data;
+};
+
+struct format_state {
+	struct expression	*expr;
+	unsigned int		va_start;
+	unsigned int		fmt_index;
+	unsigned int		arg_index;
+	unsigned int		used_position: 1;
+};
+
+static int printf_fmt_numtype(struct format_type *fmt, struct expression **expr, struct symbol *ctype, struct symbol **target, const char **typediff)
+{
+	struct symbol *type = fmt->data;
+	*target = type;
+	return ctype == type;
+}
+
+// todo - comparing pointers isn't easy...
+static int printf_fmt_string(struct format_type *fmt, struct expression **expr, struct symbol *ctype, struct symbol **target, const char **typediff)
+{
+	*target = &string_ctype;
+	return check_assignment_types(*target, expr, typediff);
+}
+
+static int printf_fmt_pointer(struct format_type *fmt, struct expression **expr, struct symbol *ctype, struct symbol **target, const char **typediff)
+{
+	*target = &ptr_ctype;
+	// todo - deal with not caring about address-space //
+	return check_assignment_types(*target, expr, typediff);
+}
+
+static int printf_fmt_print_pointer(struct format_type *fmt, struct expression **expr, struct symbol *ctype, struct symbol **target, const char **typediff)
+{
+	*target = &ptr_ctype;
+	return check_assignment_types(*target, expr, typediff);
+}
+
+struct format_type printf_fmts[] = {
+	{ "c",	.test = printf_fmt_numtype, &char_ctype },
+	// todo lc (wchar_t)
+	// todo h/hh (char types)
+	{ "f",	.test = printf_fmt_numtype, &double_ctype },
+	{ "g",	.test = printf_fmt_numtype, &double_ctype },
+	// todo j (intmax/unitmax)
+	{ "s",	.test = printf_fmt_string, },
+	// todo n (pointer to integer)
+	{ "p",	.test = printf_fmt_print_pointer, },
+	{ "px", .test = printf_fmt_print_pointer, },
+	// todo q (modifier?)
+	{ "d",	.test = printf_fmt_numtype, &int_ctype },
+	{ "ld", .test = printf_fmt_numtype, &long_ctype },
+	{ "lld", .test = printf_fmt_numtype, &llong_ctype },
+	{ "u",	.test = printf_fmt_numtype, &uint_ctype },
+	{ "lu", .test = printf_fmt_numtype, &ulong_ctype },
+	{ "llu", .test = printf_fmt_numtype, &ullong_ctype },
+	{ "L",	.test = printf_fmt_numtype, &ldouble_ctype },
+	{ "x",	.test = printf_fmt_numtype, &uint_ctype },
+	{ "lx", .test = printf_fmt_numtype, &ulong_ctype },
+	{ "llx", .test = printf_fmt_numtype, &ullong_ctype },
+	{ "X",	.test = printf_fmt_numtype, &int_ctype },
+	{ "lX", .test = printf_fmt_numtype, &ulong_ctype },
+	{ "llX", .test = printf_fmt_numtype, &ullong_ctype },
+	{ "L", .test = printf_fmt_numtype, &ldouble_ctype },
+	// todo z/Z sizeof ?
+	{ },
+};
+
+static struct format_type printf_fmt_ptr_ref = { "p", .test = printf_fmt_pointer, };
+
+static struct expression *get_expression_n(struct expression_list *args, int nr)
+{
+	return ptr_list_nth_entry((struct ptr_list *)args, nr);
+}
+
+static struct format_type *parse_printf_get_fmt(const char *msg, const char **msgout)
+{
+	struct format_type *type;
+	const char *end;
+	int len;
+
+	for (end = msg; *end > ' '; end++);	/* find end of format */
+	*msgout = end+1;
+
+	len = (end - msg);
+	for (type = printf_fmts; type->format != NULL; type++)
+		if (!strncmp(msg, type->format, len))
+			return type;
+
+	return NULL;
+}
+
+static int is_printf_flag(char ch)
+{
+	return ch == '0' || ch == '+' || ch == '-' || ch == ' ' || ch == '#';
+}
+
+static int printf_check_position(const char **fmt)
+{
+	const char *ptr= *fmt;
+
+	if (!isdigit(*ptr))
+		return -1;
+	while (isdigit(*ptr))
+		ptr++;
+	if (*ptr == '$') {
+		const char *pos = *fmt;
+		*fmt = ptr+1;
+		return strtoul(pos, NULL, 10);
+	}
+	return -1;
+}
+
+static void parse_format_printf_checkpos(struct format_state *state, const char *which)
+{
+	if (state->used_position)
+		warning(state->expr->pos,
+			"format %d: %s: no position specified",
+			state->arg_index-1, which);
+}
+
+static int parse_format_printf_argfield(const char **fmtptr, struct format_state *state, struct expression_list *args, int *pos, const char *which)
+{
+	struct expression *expr;
+	const char *fmt = *fmtptr;
+	int argpos = -1;
+
+	/* check for simple digit-string width/precision specifier first */
+	if (*fmt != '*') {
+		while (isdigit(*fmt))
+			fmt++;
+		*fmtptr = fmt;
+		return 0;
+	}
+
+	fmt++;
+	argpos = printf_check_position(&fmt);
+
+	if (argpos > 0) {
+		argpos += state->va_start - 1;
+		state->used_position = 1;
+	} else {
+		argpos = (*pos)++;
+		state->arg_index++;
+		parse_format_printf_checkpos(state, which);
+	}
+
+	*fmtptr = fmt;
+	expr = get_expression_n(args, argpos-1);
+	if (!expr) {
+		warning(state->expr->pos, "%s: no argument at position %d", which, argpos);
+		return 1;
+	}
+
+	/* todo - verify we got an actual integer argument */
+	return 0;
+}
+
+/* printf format parsing code
+ *
+ * TODO:
+ * - fix up type checking of castable types (such as int vs long vs long long)
+ * - validate all arguments specified are also used...
+ * - possibly remove return code from this function
+ */
+static int parse_format_printf(const char **fmtstring, struct format_state *state, struct expression_list *args)
+{
+	struct format_type *type;
+	struct expression *expr;
+	const char *fmt = *fmtstring;
+	const char *fmtpost = NULL;
+	int pos = state->arg_index;
+	int error = 0;
+	int ret;
+
+	/* trivial check for %% */
+	fmt++;
+	if (fmt[0] == '%') {
+		*fmtstring = fmt;
+		return 0;
+	}
+
+	state->arg_index++;
+	state->fmt_index++;
+
+	ret = printf_check_position(&fmt);
+	if (ret == 0) {
+		/* we got an invalid position argument */
+		error++;
+	} else if (ret < 0) {
+		parse_format_printf_checkpos(state, "position");
+	} else {
+		state->used_position = 1;
+		pos = ret + state->va_start - 1;
+	}
+
+	/* get rid of any formatting flag bits */
+	while (is_printf_flag(*fmt))
+		fmt++;
+
+	/* now there is the posibility of a width specifier */
+	if (parse_format_printf_argfield(&fmt, state, args, &pos, "width"))
+		error++;
+
+	/* now we might have the precision specifier */
+	if (*fmt == '.') {
+		fmt++;
+		if (parse_format_printf_argfield(&fmt, state, args, &pos, "position"))
+			error++;
+	}
+
+	type = parse_printf_get_fmt(fmt, &fmtpost);
+
+	if (!type && fmt[0] == 'p')
+		type = &printf_fmt_ptr_ref;	/* probably some extension */
+
+	if (type) {
+		struct symbol *ctype, *source, *target = NULL;
+		const char *typediff = "different types";
+		int ret;
+
+		*fmtstring = fmtpost;
+		expr = get_expression_n(args, pos-1);
+		if (!expr)
+			return -2;
+
+		ctype = evaluate_expression(expr);
+		if (!ctype)
+			return -3;
+
+		source = degenerate(expr);
+		ret = (type->test)(type->data, &expr, ctype, &target, &typediff);
+
+		if (ret == 0) {
+			warning(expr->pos, "incorrect type in argument %d (%s)", pos, typediff);
+			info(expr->pos, "   expected %s", show_typename(target));
+			info(expr->pos, "   got %s", show_typename(source));
+		}
+	} else {
+		warning(expr->pos, "cannot evaluate type '%*s'", (int)(fmtpost - *fmtstring), *fmtstring);
+		*fmtstring = fmtpost;
+		return -1;
+	}
+
+	return 1;
+}
+
+/* attempt to run through a printf format string and work out the types
+ * it specifies. The format is parsed from the __attribute__(format())
+ * in the parser code which stores the positions of the message and arg
+ * start in the ctype.
+ */
+static void evaluate_format_printf(struct symbol *fn, struct expression_list *head)
+{
+	struct format_state state = { };
+	struct expression *expr;
+	const char *fmt_string = NULL;
+
+	expr = get_expression_n(head, fn->ctype.printf_msg-1);
+	if (!expr)
+		return;
+	if (expr->string && expr->string->length)
+		fmt_string = expr->string->data;
+	if (!fmt_string) {
+		struct symbol *sym = evaluate_expression(expr);
+
+		/* attempt to find initialiser for this */
+		if (sym && sym->initializer && sym->initializer->string)
+			fmt_string = sym->initializer->string->data;
+	}
+
+	state.expr = expr;
+	state.va_start = fn->ctype.printf_va_start;
+	state.arg_index = fn->ctype.printf_va_start;
+
+	if (!fmt_string) {
+		warning(expr->pos, "not a format string?");
+	} else {
+		const char *string = fmt_string;
+
+		for (; string[0] != '\0'; string++) {
+			if (string[0] != '%')
+				continue;
+			parse_format_printf(&string, &state, head);
+		}
+	}
+}
+
 static int evaluate_arguments(struct symbol *fn, struct expression_list *head)
 {
 	struct expression *expr;
 	struct symbol_list *argument_types = fn->arguments;
 	struct symbol *argtype;
 	int i = 1;
+
+	/* do this first, otherwise the arugment info may get lost or changed
+	 * later on in the evaluation loop.
+	 */
+	if (fn->ctype.printf_va_start)
+		evaluate_format_printf(fn, head);
 
 	PREPARE_PTR_LIST(argument_types, argtype);
 	FOR_EACH_PTR (head, expr) {
