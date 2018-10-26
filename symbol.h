@@ -86,6 +86,7 @@ enum keyword {
 	KW_SHORT	= 1 << 7,
 	KW_LONG		= 1 << 8,
 	KW_EXACT	= 1 << 9,
+	KW_FORMAT	= 1 << 10,
 };
 
 struct context {
@@ -97,12 +98,18 @@ extern struct context *alloc_context(void);
 
 DECLARE_PTR_LIST(context_list, struct context);
 
+struct format {
+	unsigned short index;	/* index in argument list for format string */
+	unsigned short first;	/* where first variadic argument is */
+};
+
 struct ctype {
 	unsigned long modifiers;
 	unsigned long alignment;
 	struct context_list *contexts;
 	struct ident *as;
 	struct symbol *base_type;
+	struct format format;
 };
 
 struct decl_state {
