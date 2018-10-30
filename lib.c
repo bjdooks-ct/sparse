@@ -269,6 +269,7 @@ int Wimplicit_int = 1;
 int Winit_cstring = 0;
 int Wint_to_pointer_cast = 1;
 int Wenum_mismatch = 1;
+int Wformat = 0;
 int Wsparse_error = 0;
 int Wmemcpy_max_count = 1;
 int Wnon_pointer_null = 1;
@@ -651,6 +652,7 @@ static const struct flag warnings[] = {
 	{ "implicit-int", &Wimplicit_int },
 	{ "init-cstring", &Winit_cstring },
 	{ "int-to-pointer-cast", &Wint_to_pointer_cast },
+	{ "format", &Wformat },
 	{ "memcpy-max-count", &Wmemcpy_max_count },
 	{ "non-pointer-null", &Wnon_pointer_null },
 	{ "old-initializer", &Wold_initializer },
