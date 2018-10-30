@@ -2778,7 +2778,7 @@ static int evaluate_arguments(struct symbol *fn, struct expression_list *head)
 	 * info may get lost or changed later on in the evaluation loop by
 	 * calls to degenerate()
 	 */
-	if (fn->ctype.printf_va_start)
+	if (Wformat && fn->ctype.printf_va_start)
 		fmt_string = get_printf_fmt(fn, head);
 
 	PREPARE_PTR_LIST(argument_types, argtype);
@@ -2818,7 +2818,7 @@ static int evaluate_arguments(struct symbol *fn, struct expression_list *head)
 	} END_FOR_EACH_PTR(expr);
 	FINISH_PTR_LIST(argtype);
 
-	if (fn->ctype.printf_va_start)
+	if (Wformat && fn->ctype.printf_va_start)
 		evaluate_format_printf(fmt_string, fn, head);
 
 	return 1;
