@@ -2545,7 +2545,7 @@ static int evaluate_arguments(struct symbol *fn, struct expression_list *head)
 	/* do this first, otherwise the arugment info may get lost or changed
 	 * later on in the evaluation loop.
 	 */
-	if (fn->ctype.printf_va_start)
+	if (Wformat && fn->ctype.printf_va_start)
 		evaluate_format_printf(fn, head);
 
 	PREPARE_PTR_LIST(argument_types, argtype);

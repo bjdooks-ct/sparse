@@ -219,6 +219,15 @@ trouble.
 Sparse does not issue these warnings by default.
 .
 .TP
+.B \-Wformat
+Warn about parameter mis-match to any variadic function which specifies
+where the format string is with the 
+.BI __attribute__((format( type, message, va_start )))
+attribute.
+
+Sparse does not issues these warnings by default. To turn them on, use
+\fB\-Wno\-format\fR
+.TP
 .B \-Wmemcpy\-max\-count
 Warn about call of \fBmemcpy()\fR, \fBmemset()\fR, \fBcopy_from_user()\fR, or
 \fBcopy_to_user()\fR with a large compile-time byte count.

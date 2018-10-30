@@ -232,6 +232,7 @@ int Wdesignated_init = 1;
 int Wdo_while = 0;
 int Winit_cstring = 0;
 int Wenum_mismatch = 1;
+int Wformat = 0;
 int Wsparse_error = 0;
 int Wmemcpy_max_count = 1;
 int Wnon_pointer_null = 1;
@@ -525,6 +526,7 @@ static const struct warning {
 	{ "do-while", &Wdo_while },
 	{ "enum-mismatch", &Wenum_mismatch },
 	{ "init-cstring", &Winit_cstring },
+	{ "format", &Wformat },
 	{ "memcpy-max-count", &Wmemcpy_max_count },
 	{ "non-pointer-null", &Wnon_pointer_null },
 	{ "old-initializer", &Wold_initializer },
