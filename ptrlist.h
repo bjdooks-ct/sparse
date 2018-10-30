@@ -46,6 +46,8 @@ extern void __free_ptr_list(struct ptr_list **);
 extern int ptr_list_size(struct ptr_list *);
 extern int linearize_ptr_list(struct ptr_list *, void **, int);
 
+extern void *ptr_list_nth_entry(struct ptr_list *, unsigned int idx);
+
 /*
  * Hey, who said that you can't do overloading in C?
  *

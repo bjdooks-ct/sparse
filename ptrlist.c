@@ -29,6 +29,28 @@ int ptr_list_size(struct ptr_list *head)
 	return nr;
 }
 
+///
+// get the nth element of a ptrlist
+// @head: the head of the list
+// @return: the nth element of the list or ``NULL`` if the list is too short.
+void *ptr_list_nth_entry(struct ptr_list *list, unsigned int idx)
+{
+	struct ptr_list *head = list;
+
+	if (!head)
+		return NULL;
+
+	do {
+		unsigned int nr = list->nr;
+
+		if (idx < nr)
+			return list->list[idx];
+		else
+			idx -= nr;
+	} while ((list = list->next) != head);
+	return NULL;
+}
+
 /*
  * Linearize the entries of a list up to a total of 'max',
  * and return the nr of entries linearized.
