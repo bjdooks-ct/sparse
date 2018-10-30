@@ -2785,7 +2785,8 @@ static int evaluate_arguments(struct symbol *fn, struct expression_list *head)
 	 * calls to degenerate()
 	 */
 
-	if (fn->ctype.format.index)
+	
+	if (Wformat && fn->ctype.format.index)
 		fmt_string = get_printf_fmt(fn, head);
 
 	PREPARE_PTR_LIST(argument_types, argtype);
@@ -2826,7 +2827,7 @@ static int evaluate_arguments(struct symbol *fn, struct expression_list *head)
 	FINISH_PTR_LIST(argtype);
 
 
-	if (fn->ctype.format.index)
+	if (Wformat && fn->ctype.format.index)
 		evaluate_format_printf(fmt_string, fn, head);
 
 	return 1;
