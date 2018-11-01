@@ -157,6 +157,7 @@ echo "Usage: $prog_name [command] [command arguments]"
 echo
 echo "commands:"
 echo "    none                       runs the whole test suite"
+echo "	  clean			     clean all output files"
 echo "    single file                runs the test in 'file'"
 echo "    format file [name [cmd]]   helps writing a new test case using cmd"
 echo
@@ -372,6 +373,9 @@ arg_file()
 case "$1" in
 	'')
 		do_test_suite
+		;;
+	clean)
+		find . -type f \( -name \*.diff -o -name \*.got -o -name \*.expected \) -print0 | xargs -0 rm
 		;;
 	single)
 		arg_file "$2"
