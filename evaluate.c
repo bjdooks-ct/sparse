@@ -2339,7 +2339,7 @@ static int printf_fmt_numtype(struct format_type *fmt, struct expression **expr,
 {
 	struct symbol *type = fmt->data;
 	*target = type;
-	return ctype == type;
+	return check_assignment_types(*target, expr, typediff);
 }
 
 static int printf_fmt_string(struct format_type *fmt, struct expression **expr,
