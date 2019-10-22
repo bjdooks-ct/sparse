@@ -21,16 +21,16 @@ static void test(void) {
  *
  * check-error-start
 varargs-format-addrspace1.c:10:26: warning: incorrect type in argument 2 (different address spaces)
-varargs-format-addrspace1.c:10:26:    expected char *
+varargs-format-addrspace1.c:10:26:    expected const char *
 varargs-format-addrspace1.c:10:26:    got void [noderef] <asn:1> *a
 varargs-format-addrspace1.c:12:32: warning: incorrect type in argument 3 (different address spaces)
-varargs-format-addrspace1.c:12:32:    expected char *
+varargs-format-addrspace1.c:12:32:    expected const char *
 varargs-format-addrspace1.c:12:32:    got void [noderef] <asn:1> *a
 varargs-format-addrspace1.c:13:36: warning: incorrect type in argument 4 (different address spaces)
-varargs-format-addrspace1.c:13:36:    expected char *
+varargs-format-addrspace1.c:13:36:    expected const char *
 varargs-format-addrspace1.c:13:36:    got void [noderef] <asn:1> *a
 varargs-format-addrspace1.c:14:36: warning: incorrect type in argument 4 (different address spaces)
-varargs-format-addrspace1.c:14:36:    expected char *
+varargs-format-addrspace1.c:14:36:    expected const char *
 varargs-format-addrspace1.c:14:36:    got void [noderef] <asn:1> *a
  * check-error-end
  */
