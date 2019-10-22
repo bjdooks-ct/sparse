@@ -2342,20 +2342,24 @@ static int printf_fmt_numtype(struct format_type *fmt, struct expression **expr,
 	return ctype == type;
 }
 
-static int printf_fmt_string(struct format_type *fmt, struct expression **expr, struct symbol *ctype, struct symbol **target, const char **typediff)
+static int printf_fmt_string(struct format_type *fmt, struct expression **expr,
+			     struct symbol *ctype, struct symbol **target, const char **typediff)
 {
 	*target = &string_ctype;
 	return check_assignment_types(*target, expr, typediff);
 }
 
-static int printf_fmt_pointer(struct format_type *fmt, struct expression **expr, struct symbol *ctype, struct symbol **target, const char **typediff)
+static int printf_fmt_pointer(struct format_type *fmt, struct expression **expr,
+			      struct symbol *ctype, struct symbol **target, const char **typediff)
 {
 	*target = &ptr_ctype;
         return check_assignment_types(*target, expr, typediff);
 }
 
-static int printf_fmt_print_pointer(struct format_type *fmt, struct expression **expr, struct symbol *ctype, struct symbol **target, const char **typediff)
+static int printf_fmt_print_pointer(struct format_type *fmt, struct expression **expr,
+				    struct symbol *ctype, struct symbol **target, const char **typediff)
 {
+	// TODO TODO: fix this here!!!
 	int ret;
 	*target = &ptr_ctype;
 	ret =check_assignment_types(*target, expr, typediff);
@@ -2367,9 +2371,12 @@ static int printf_fmt_print_pointer(struct format_type *fmt, struct expression *
 	return ret;
 }
 
-static struct format_type printf_fmt_ptr_ref = { "p", .test = printf_fmt_pointer, };
+static struct format_type printf_fmt_ptr_ref = {
+	.format = "p",
+	.test = printf_fmt_pointer,
+};
 
-static struct expression *get_expression_n(struct expression_list *args, int nr)
+static struct expression *get_nth_expression(struct expression_list *args, int nr)
 {
 	return ptr_list_nth_entry((struct ptr_list *)args, nr);
 }
@@ -2379,7 +2386,8 @@ static int is_float_spec(char t)
 	return t == 'f' || t == 'g' || t == 'F' || t == 'G';
 }
 
-static struct format_type *parse_printf_get_fmt(struct format_type *type, const char *msg, const char **msgout)
+static struct format_type *parse_printf_get_fmt(struct format_type *type,
+						const char *msg, const char **msgout)
 {
 	const char *ptr = msg;
 	int szmod=0;
@@ -2528,13 +2536,17 @@ static int printf_check_position(const char **fmt)
 
 static void parse_format_printf_checkpos(struct format_state *state, const char *which)
 {
-	if (state->used_position)
+	if (state->used_position) {
 		warning(state->expr->pos,
 			"format %d: %s: no position specified",
 			state->arg_index-1, which);
+	}
 }
 
-static int parse_format_printf_argfield(const char **fmtptr, struct format_state *state, struct expression_list *args, int *pos, const char *which)
+static int parse_format_printf_argfield(const char **fmtptr,
+					struct format_state *state,
+					struct expression_list *args,
+					int *pos, const char *which)
 {
 	struct expression *expr;
 	struct symbol *ctype;
@@ -2562,13 +2574,13 @@ static int parse_format_printf_argfield(const char **fmtptr, struct format_state
 	}
 
 	*fmtptr = fmt;
-	expr = get_expression_n(args, argpos-1);
+	expr = get_nth_expression(args, argpos-1);
 	if (!expr) {
 		warning(state->expr->pos, "%s: no argument at position %d", which, argpos);
 		return 1;
 	}
 
-	/* check the vale we got was int/uint type */
+	/* check the value we got was int/uint type */
 	ctype = evaluate_expression(expr);
 	if (ctype) {
 		struct symbol *source, *target = &int_ctype;
@@ -2596,12 +2608,12 @@ static int parse_format_printf(const char **fmtstring,
 			       struct format_state *state,
 			       struct expression_list *args)
 {
-	struct format_type ftype;
-	struct format_type *type;
+	struct format_type ftype;	/* temp storage for format info */
+	struct format_type *type;	/* type found from the parse */
 	struct expression *expr;
-	const char *fmt = *fmtstring;
-	const char *fmtpost = NULL;
-	int pos = state->arg_index;
+	const char *fmt = *fmtstring;	/* pointer to parse position */
+	const char *fmtpost = NULL;	/* moved to end of the parsed format */
+	int pos = state->arg_index;	/* position of the argument */
 	int error = 0;
 	int ret;
 
@@ -2657,7 +2669,7 @@ static int parse_format_printf(const char **fmtstring,
 		int ret;
 
 		*fmtstring = fmtpost;
-		expr = get_expression_n(args, pos-1);
+		expr = get_nth_expression(args, pos-1);
 		if (!expr) {
 			/* no argument, but otherwise valid argument string */
 			warning(state->expr->pos, "no argument at position '%d'", pos);
@@ -2669,7 +2681,7 @@ static int parse_format_printf(const char **fmtstring,
 			return -3;
 
 		source = degenerate(expr);
-		ret = (type->test)(type, &expr, ctype, &target, &typediff);
+		ret = type->test(type, &expr, ctype, &target, &typediff);
 		if (!target)	/* shouldn't happen, but catch anyway */
 			return -4;
 
@@ -2679,7 +2691,7 @@ static int parse_format_printf(const char **fmtstring,
 			info(expr->pos, "   got %s", show_typename(source));
 		}
 	} else {
-		/* try and find the end of this */
+		/* try and find the end of this format string by looking for a space*/
 		fmtpost = *fmtstring;
 		while (*fmtpost > ' ')
 			fmtpost++;
@@ -2697,7 +2709,7 @@ static const char *get_printf_fmt(struct symbol *fn, struct expression_list *hea
 	struct expression *expr;
 	const char *fmt_string = NULL;
 
-	expr = get_expression_n(head, fn->ctype.printf_msg-1);
+	expr = get_nth_expression(head, fn->ctype.printf_msg-1);
 	if (!expr)
 		return NULL;
 	if (expr->string && expr->string->length)
@@ -2724,7 +2736,7 @@ static void evaluate_format_printf(const char *fmt_string, struct symbol *fn, st
 	struct format_state state = { };
 	struct expression *expr;
 
-	expr = get_expression_n(head, fn->ctype.printf_msg-1);
+	expr = get_nth_expression(head, fn->ctype.printf_msg-1);
 	if (!expr)
 		return;
 
@@ -2761,8 +2773,9 @@ static int evaluate_arguments(struct symbol *fn, struct expression_list *head)
 	int i = 1;
 
 	/*
-	 * do this first, otherwise the arugment info may get lost or changed
-	 * later on in the evaluation loop by degenerate()
+	 * Do the va-arg format parsing here. This is done as the arugment
+	 * info may get lost or changed later on in the evaluation loop by
+	 * calls to degenerate()
 	 */
 	if (Wformat && fn->ctype.printf_va_start)
 		fmt_string = get_printf_fmt(fn, head);
