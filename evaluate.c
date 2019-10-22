@@ -2405,24 +2405,26 @@ static struct format_type *parse_printf_get_fmt(struct format_type *type,
 	} else if (*ptr == 'p') {
 		ptr++;
 		type->test = printf_fmt_print_pointer;
-		//todo - check if there's anything after these?
+		/* check for pointer being printed as hex explicitly */
 		if (*ptr == 'x' || *ptr == 'X') {
 			ptr++;
 		} else if (isalpha(*ptr)) {
-			// probably sxomething that /is/ being de-referenced
+			/* probably some extra specifiers after %p */
 			ptr++;
 			type->test = printf_fmt_pointer;
 		}
-	} else if (*ptr == 'z') {
+	} else if (*ptr == 'z') {			// todo - we should construct pointer to int/etc //
+
 		ptr++;
-		if (*ptr == 'd') {
+		if (*ptr == 'd' || *ptr == 'i') {
 			ptr++;
 			type->test = printf_fmt_numtype;
-			type->data = &long_ctype;
-		} else if (*ptr == 'u' || *ptr == 'x') {
+			type->data = ssize_t_ctype;
+		} else if (*ptr == 'u' || *ptr == 'x' || *ptr == 'X' ||
+			   *ptr = 'o') {
 			ptr++;
 			type->test = printf_fmt_numtype;
-			type->data = &ulong_ctype;
+			type->data = size_t_ctype;
 		}
 	} else {
 		if (*ptr == 'l') {
@@ -2494,7 +2496,7 @@ static struct format_type *parse_printf_get_fmt(struct format_type *type,
 			ptr += 2;
 		} else if (is_float_spec(*ptr)) {
 			type->test = printf_fmt_numtype;
-			type->data = &double_ctype;
+			type->data = szmod == 1 ? &ldouble_ctype :  &double_ctype;
 			ptr++;
 		} else if (*ptr == 'n') {	/* pointer to an de-referenced int/etc */
 			// todo - we should construct pointer to int/etc //
