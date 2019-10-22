@@ -2345,14 +2345,14 @@ static int printf_fmt_numtype(struct format_type *fmt, struct expression **expr,
 static int printf_fmt_string(struct format_type *fmt, struct expression **expr,
 			     struct symbol *ctype, struct symbol **target, const char **typediff)
 {
-	*target = &string_ctype;
+	*target = &const_string_ctype;
 	return check_assignment_types(*target, expr, typediff);
 }
 
 static int printf_fmt_pointer(struct format_type *fmt, struct expression **expr,
 			      struct symbol *ctype, struct symbol **target, const char **typediff)
 {
-	*target = &ptr_ctype;
+	*target = &const_ptr_ctype;
         return check_assignment_types(*target, expr, typediff);
 }
 
@@ -2361,7 +2361,7 @@ static int printf_fmt_print_pointer(struct format_type *fmt, struct expression *
 {
 	// TODO TODO: fix this here!!!
 	int ret;
-	*target = &ptr_ctype;
+	*target = &const_ptr_ctype;
 	ret =check_assignment_types(*target, expr, typediff);
 	if (ret == 0) {
 		/* if just printing, ignore address-space mismatches */
