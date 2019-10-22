@@ -2421,7 +2421,7 @@ static struct format_type *parse_printf_get_fmt(struct format_type *type,
 			type->test = printf_fmt_numtype;
 			type->data = ssize_t_ctype;
 		} else if (*ptr == 'u' || *ptr == 'x' || *ptr == 'X' ||
-			   *ptr = 'o') {
+			   *ptr == 'o') {
 			ptr++;
 			type->test = printf_fmt_numtype;
 			type->data = size_t_ctype;
@@ -2757,7 +2757,6 @@ static void evaluate_format_printf(const char *fmt_string, struct symbol *fn, st
 				continue;
 			if (parse_format_printf(&string, &state, head) < 0)
 				fail++;
-			string--;
 		}
 
 		if (fail > 0)
