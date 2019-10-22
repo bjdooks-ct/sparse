@@ -138,7 +138,8 @@ static void asm_modifier_inline(struct token *token, unsigned long *mods)
 
 /* the types of printf style formatting from __attribute__((format)) */
 enum {
-	FmtPrintf = 0, FmtScanf,
+	FMT_PRINTF = 0,
+	FMT_SCANF,
 };
 
 static struct symbol_op typedef_op = {
@@ -456,12 +457,12 @@ static struct symbol_op mode_word_op = {
 
 static struct symbol_op attr_printf_op = {
 	.type	= KW_FORMAT,
-	.class	= FmtPrintf,
+	.class	= FMT_PRINTF,
 };
 
 static struct symbol_op attr_scanf_op = {
 	.type	= KW_FORMAT,
-	.class	= FmtScanf,
+	.class	= FMT_SCANF,
 };
 
 /* Using NS_TYPEDEF will also make the keyword a reserved one */
@@ -1222,7 +1223,7 @@ static struct token *attribute_format(struct token *token, struct symbol *attr, 
 
 	if (!fmt_sym || !args[0] || !args[1] || !args[2]) {
 		warning(token->pos, "incorrect format attribute");
-	} else if (fmt_sym->op->class != FmtPrintf) {
+	} else if (fmt_sym->op->class != FMT_PRINTF) {
 		/* skip anything that isn't printf for the moment */
 		warning(token->pos, "only printf format attribute supported");
 	} else {
