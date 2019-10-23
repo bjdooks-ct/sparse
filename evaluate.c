@@ -2733,7 +2733,8 @@ static const char *get_printf_fmt(struct symbol *fn, struct expression_list *hea
  * in the parser code which stores the positions of the message and arg
  * start in the ctype.
  */
-static void evaluate_format_printf(const char *fmt_string, struct symbol *fn, struct expression_list *head)
+static void evaluate_format_printf(const char *fmt_string, struct symbol *fn,
+				   struct expression_list *head)
 {
 	struct format_state state = { };
 	struct expression *expr;
@@ -2752,9 +2753,13 @@ static void evaluate_format_printf(const char *fmt_string, struct symbol *fn, st
 		const char *string = fmt_string;
 		int fail = 0;
 
-		for (; string[0] != '\0'; string++) {
-			if (string[0] != '%')
+		while (string[0]) {
+			if (string[0] != '%') {
+				/* strip anything before the '%' */
+				string++;
 				continue;
+			}
+
 			if (parse_format_printf(&string, &state, head) < 0)
 				fail++;
 		}
