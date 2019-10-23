@@ -25,6 +25,24 @@ static int test(void)
 	return 0;
 }
 
+static void test2(int x, int y, const void *p)
+{
+	pf("%02x%02x %8p\n", x, y, p);
+}
+
+static inline void fn(int x) { pf("%08x\n", x); }
+static void test3(int x)
+{
+	fn;
+	fn(x);
+}
+
+static void test4(int i, unsigned int u)
+{
+	pf("%d\n", i);
+	pf("%x\n", u);
+}
+
 /*
  * check-name: variadic formatting tests for width/precisions
  * check-command: sparse -Wformat $file
