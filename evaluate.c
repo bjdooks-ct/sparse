@@ -2709,22 +2709,23 @@ static int parse_format_printf(const char **fmtstring,
 static const char *get_printf_fmt(struct symbol *fn, struct expression_list *head)
 {
 	struct expression *expr;
-	const char *fmt_string = NULL;
 
 	expr = get_nth_expression(head, fn->ctype.format.index-1);
 	if (!expr)
 		return NULL;
-	if (expr->string && expr->string->length)
-		fmt_string = expr->string->data;
-	if (!fmt_string) {
-		struct symbol *sym = evaluate_expression(expr);
-
-		/* attempt to find initialiser for this */
-		if (sym && sym->initializer && sym->initializer->string)
-			fmt_string = sym->initializer->string->data;
+	if (!evaluate_expression(expr))
+		return NULL;
+	if (expr->type == EXPR_PREOP && expr->op == '*')
+		expr = expr->unop;
+	if (expr->type == EXPR_SYMBOL) {
+		struct symbol *sym = expr->symbol;
+		if (sym && sym->initializer)
+			expr = sym->initializer;
 	}
+	if (expr->type == EXPR_STRING)
+		return expr->string->data;
 
-	return fmt_string;
+	return NULL;
 }
 
 /*
