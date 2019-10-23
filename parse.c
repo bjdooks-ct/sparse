@@ -136,7 +136,7 @@ static void asm_modifier_inline(struct token *token, unsigned long *mods)
 	asm_modifier(token, mods, MOD_INLINE);
 }
 
-/* the types of printf style formatting from __attribute__((format)) */
+/* the types of formatting from __attribute__((format)) */
 enum {
 	FMT_PRINTF = 0,
 	FMT_SCANF,
@@ -1194,9 +1194,10 @@ static struct token *attribute_address_space(struct token *token, struct symbol 
 	return token;
 }
 
-static int invalid_printf_format_args(long long start, long long at)
+static int invalid_format_args(long long start, long long at)
 {
-	return start < 0 || at < 0 || (start == at && start > 0) ||
+	return start < 0 || at < 0 || start > USHRT_MAX || at > USHRT_MAX ||
+		(start == at && start > 0) ||
 		(start == 0 && at == 0);
 }
 
@@ -1232,15 +1233,15 @@ static struct token *attribute_format(struct token *token, struct symbol *attr, 
 		start = get_expression_value(args[2]);
 		at = get_expression_value(args[1]);
 
-		if (invalid_printf_format_args(start, at)) {
+		if (invalid_format_args(start, at)) {
 			warning(token->pos, "bad format positions");
 		} else if (start == 0) {
 			/* nothing to do here, is va_list function */
 		} else if (start < at) {
 			warning(token->pos, "format cannot be after va_args");
 		} else {
-			ctx->ctype.printf_va_start = start;
-			ctx->ctype.printf_msg = at;
+			ctx->ctype.format.index = at;
+			ctx->ctype.format.first = start;
 		}
 	}
 
@@ -3053,8 +3054,7 @@ struct token *external_declaration(struct token *token, struct symbol_list **lis
 		if (!(decl->ctype.modifiers & MOD_STATIC))
 			decl->ctype.modifiers |= MOD_EXTERN;
 
-		base_type->ctype.printf_msg = decl->ctype.printf_msg;
-		base_type->ctype.printf_va_start = decl->ctype.printf_va_start;
+		base_type->ctype.format = decl->ctype.format;
 	} else if (base_type == &void_ctype && !(decl->ctype.modifiers & MOD_EXTERN)) {
 		sparse_error(token->pos, "void declaration");
 	}
