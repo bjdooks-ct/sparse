@@ -2329,7 +2329,7 @@ struct format_type {
 
 struct format_state {
 	struct expression	*expr;
-	unsigned int		va_start;
+	unsigned int		first;
 	unsigned int		fmt_index;
 	unsigned int		arg_index;
 	unsigned int		used_position: 1;
@@ -2567,7 +2567,7 @@ static int parse_format_printf_argfield(const char **fmtptr,
 	argpos = printf_check_position(&fmt);
 
 	if (argpos > 0) {
-		argpos += state->va_start - 1;
+		argpos += state->first - 1;
 		state->used_position = 1;
 	} else {
 		argpos = (*pos)++;
@@ -2642,7 +2642,7 @@ static int parse_format_printf(const char **fmtstring,
 		parse_format_printf_checkpos(state, "position");
 	} else {
 		state->used_position = 1;
-		pos = ret + state->va_start - 1;
+		pos = ret + state->first - 1;
 	}
 
 	/* get rid of any formatting flag bits */
@@ -2711,7 +2711,7 @@ static const char *get_printf_fmt(struct symbol *fn, struct expression_list *hea
 	struct expression *expr;
 	const char *fmt_string = NULL;
 
-	expr = get_nth_expression(head, fn->ctype.printf_msg-1);
+	expr = get_nth_expression(head, fn->ctype.format.index-1);
 	if (!expr)
 		return NULL;
 	if (expr->string && expr->string->length)
@@ -2739,13 +2739,13 @@ static void evaluate_format_printf(const char *fmt_string, struct symbol *fn,
 	struct format_state state = { };
 	struct expression *expr;
 
-	expr = get_nth_expression(head, fn->ctype.printf_msg-1);
+	expr = get_nth_expression(head, fn->ctype.format.index-1);
 	if (!expr)
 		return;
 
 	state.expr = expr;
-	state.va_start = fn->ctype.printf_va_start;
-	state.arg_index = fn->ctype.printf_va_start;
+	state.first = fn->ctype.format.first;
+	state.arg_index = fn->ctype.format.first;
 
 	if (!fmt_string) {
 		warning(expr->pos, "not a format string?");
@@ -2783,7 +2783,7 @@ static int evaluate_arguments(struct symbol *fn, struct expression_list *head)
 	 * info may get lost or changed later on in the evaluation loop by
 	 * calls to degenerate()
 	 */
-	if (Wformat && fn->ctype.printf_va_start)
+	if (Wformat && fn->ctype.format.index)
 		fmt_string = get_printf_fmt(fn, head);
 
 	PREPARE_PTR_LIST(argument_types, argtype);
@@ -2823,7 +2823,7 @@ static int evaluate_arguments(struct symbol *fn, struct expression_list *head)
 	} END_FOR_EACH_PTR(expr);
 	FINISH_PTR_LIST(argtype);
 
-	if (Wformat && fn->ctype.printf_va_start)
+	if (Wformat && fn->ctype.format.index)
 		evaluate_format_printf(fmt_string, fn, head);
 
 	return 1;
